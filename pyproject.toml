@@ -8,11 +8,8 @@ dependencies = [
     "numpy>=2.5.2",
     "opencv-python>=5.0.0.93",
     "pillow>=12.3.0",
-    "torch>=2.13.0",
-    "torchvision>=0.28.0",
     "transformers>=5.16.1",
 ]
-
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -27,6 +24,11 @@ classifiers = [
     "Natural Language :: Spanish",
 ]
 
+[project.optional-dependencies]
+cpu = ["torch>=2.13.0", "torchvision>=0.28.0"]
+cu126 = ["torch>=2.13.0", "torchvision>=0.28.0"]
+cu130 = ["torch>=2.13.0", "torchvision>=0.28.0"]
+
 [project.urls]
 Repository = "https://github.com/MichaelSuarez0/depth-estimation-models"
 Changelog = "https://github.com/MichaelSuarez0/depth-estimation-models/blob/main/CHANGELOG.md"
@@ -38,14 +40,43 @@ dev = ["git-cliff", "pre-commit", "pytest", "ruff"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[[tool.uv.index]]
-url = "https://download.pytorch.org/whl/cu121"
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/depth_estimation_models"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# --- Liga cada extra a un índice distinto ---
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu126", extra = "cu126" },
+    { index = "pytorch-cu130", extra = "cu130" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu126", extra = "cu126" },
+    { index = "pytorch-cu130", extra = "cu130" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+# Evita que alguien pida dos extras incompatibles a la vez
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cu126" }, { extra = "cu130" }]]
 
 [tool.bumpversion]
 current_version = "0.1.0"
