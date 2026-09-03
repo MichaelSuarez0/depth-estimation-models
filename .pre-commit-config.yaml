@@ -1,0 +1,10 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.0
+    hooks:
+      # 1. El linter (revisa errores, orden de imports, etc.)
+      - id: ruff
+        args: [--fix]
+
+      # 2. El formateador (arregla la indentación, espacios y comillas)
+      - id: ruff-format
