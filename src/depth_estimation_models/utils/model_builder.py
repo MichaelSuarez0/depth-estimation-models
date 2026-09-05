@@ -1,11 +1,12 @@
 import platform
 import time
+from pathlib import Path
 from typing import Any, Literal, Self
 
 import cv2
 import numpy as np
+import PIL.Image
 import torch
-from PIL import Image
 from transformers import AutoImageProcessor, AutoModelForDepthEstimation
 
 from depth_estimation_models.utils.models import CMAPS, Models
@@ -62,19 +63,6 @@ class ModelBuilder:
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         return self
 
-    def to_depth(self, frame_bgr):
-        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        pil = Image.fromarray(frame_rgb)
-        inputs = self.image_processor(images=pil, return_tensors="pt").to(self.device)
-        with torch.no_grad(), torch.amp.autocast(enabled=True, device_type="cuda"):
-            outputs = self.model(**inputs)
-        post = self.image_processor.post_process_depth_estimation(
-            outputs, target_sizes=[(pil.height, pil.width)]
-        )[0]["predicted_depth"]
-        depth = (post - post.min()) / (post.max() - post.min() + 1e-8)
-        depth_np = (depth.detach().cpu().numpy() * 255.0).astype(np.uint8)
-        return depth_np
-
     @staticmethod
     def overlay_text(img, text, pos, scale=0.7, color=(255, 255, 255)):
         cv2.putText(
@@ -92,16 +80,36 @@ class ModelBuilder:
         depth_color = cv2.resize(depth_color, (w, h), interpolation=cv2.INTER_NEAREST)
         return np.hstack([frame, depth_color])
 
-    def infer_depth_meter(self, frame_bgr):
-        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        pil = Image.fromarray(frame_rgb)
-        inputs = self.image_processor(images=pil, return_tensors="pt").to(self.device)
+    def _run_inference(self, image: PIL.Image.Image):
+        inputs = self.image_processor(images=image, return_tensors="pt").to(self.device)
         with torch.no_grad(), torch.amp.autocast("cuda"):
             outputs = self.model(**inputs)
+
         post = self.image_processor.post_process_depth_estimation(
-            outputs, target_sizes=[(pil.height, pil.width)]
+            outputs, target_sizes=[(image.height, image.width)]
         )[0]["predicted_depth"]
-        return post.float()
+        depth = post.float()
+        depth = (depth - depth.min()) / (depth.max() - depth.min() + 1e-8)
+        return (depth.detach().cpu().numpy() * 255.0).astype(np.uint8)
+
+    def infer_depth_meter(self, frame_bgr):
+        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        image = PIL.Image.fromarray(frame_rgb)
+        return self._run_inference(image)
+
+    def infer_depth_from_img(self, image_path: Path, out_gray: Path, out_color: Path):
+        image = PIL.Image.open(image_path).convert("RGB")
+        depth_gray = self._run_inference(image)
+
+        depth_color = cv2.applyColorMap(depth_gray, cv2.COLORMAP_TURBO)
+
+        cv2.imwrite(out_gray, depth_gray)
+        cv2.imwrite(out_color, depth_color)
+
+        cv2.imshow("Imagen original", cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR))
+        cv2.imshow("Profundidad (color)", depth_color)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
     # PIPELINE FUNCTIONS
     def run_video_capture(
@@ -125,7 +133,7 @@ class ModelBuilder:
 
             # frame = cv2.resize(frame, (WIDTH, HEIGHT), interpolation=cv2.INTER_AREA)
             t0 = time.time()
-            dmap = self.to_depth(frame)
+            dmap = self.infer_depth_meter(frame)
             dcol = self.colorize(dmap, self.CMAPS, cmap_name)
 
             fused = self.compose_side_by_side(frame, dcol)
