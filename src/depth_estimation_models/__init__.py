@@ -1,5 +1,5 @@
-from .utils import ModelBuilder
+from .utils import DepthModelBuilder
 
-__all__ = ["ModelBuilder"]
+__all__ = ["DepthModelBuilder"]
 
 __version__ = "0.1.0"

@@ -1,3 +1,3 @@
-from .model_builder import ModelBuilder
+from .model_builder import DepthModelBuilder
 
-__all__ = ["ModelBuilder"]
+__all__ = ["DepthModelBuilder"]
