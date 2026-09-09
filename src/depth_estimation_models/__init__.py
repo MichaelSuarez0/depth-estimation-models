@@ -1,4 +1,4 @@
-from .utils import DepthModelBuilder
+from .core import DepthModelBuilder
 
 __all__ = ["DepthModelBuilder"]
 

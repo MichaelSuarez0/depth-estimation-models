@@ -9,7 +9,7 @@ import PIL.Image
 import torch
 from transformers import AutoImageProcessor, AutoModelForDepthEstimation
 
-from depth_estimation_models.utils.models import CMAPS, Models
+from depth_estimation_models.core.models import CMAPS, Models
 
 
 class DepthModelBuilder:
